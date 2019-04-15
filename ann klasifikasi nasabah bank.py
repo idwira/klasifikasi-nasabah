@@ -26,13 +26,13 @@ X[:, 1] = labelencoder_X_1.fit_transform(X[:, 1])
 labelencoder_X_2 = LabelEncoder()
 X[:, 2] = labelencoder_X_2.fit_transform(X[:, 2])
 
-# Membuat tiga dummy variables untuk country
+# Membuat tiga dummy variables untuk tiga country
 onehotencoder = OneHotEncoder(categorical_features = [1])
 X = onehotencoder.fit_transform(X).toarray()
 
 # Membuang satu dummy variable country di index 0, cukup dua
 # Menghindari jebakan dummy variable
-# Update X, adalah index 1 index terakhir di kolom terakhir
+# Update range X, adalah index 1 hingga index terakhir di kolom terakhir
 X = X[:, 1:]
 
 # Membagi dataset ke dalam set Training set dan set Test
@@ -52,37 +52,78 @@ X_test = sc.transform(X_test)
 
 # Bagian 2 - Membangun ANN
 
-# Mengimport Keras libraries and packages nya dg backend tensorflow
-# Sequential untuk initialize neural network nya
-# Dense untuk membangun layers dari ANN 
+# Mengimport Keras library and modul-modul nya dg backend TensorFlow
+# Keras akan membangun Deep Neural Network berdasarkan TensorFlow
+# Modul Sequential untuk initialize neural network nya
+# Modul Dense untuk membangun layers dari ANN 
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
 
 # Memulai proses ANN
-classifier = Sequential()
+# classifier = Sequential()
 
-# Menambah input layer dan hidden layer pertama
-classifier.add(Dense(units = 6, kernel_initializer = 'uniform', activation = 'relu', input_dim = 11))
+""" Dense func melakukan inisialisasi bobot tiap node secara random ke angka kecil
+relu (rectified linear units) untuk hidden layers
+sigmoid function untuk output layer
+
+Menambah input layer dan hidden layer pertama:
+Buat 6 node di hidden layer, hasil rata-rata jumlah input layer dan output layer
+11 input layer (independent variable) + 1 output layer (biner dependent variabel) """
+# classifier.add(Dense(units = 6, kernel_initializer = "uniform", activation = "relu", input_dim = 11))
 
 # Menambah hidden layer kedua
-classifier.add(Dense(units = 6, kernel_initializer = 'uniform', activation = 'relu'))
+# classifier.add(Dense(units = 6, kernel_initializer = "uniform", activation = "relu"))
 
 # Menambah output layer
-classifier.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
+# classifier.add(Dense(units = 1, kernel_initializer = "uniform", activation = "sigmoid"))
 
-# Mengkompile ANN
-classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+""" Mengkompile ANN:
+Input dari optimizer parameter, 'adam' salah satu algo. stochastic gradient descent
+binary_crossentropy optimized loss function, utk optimal weights
+metrics, criterion yang dipilih untuk mengevaluasi model
+accuracy criterion, improve akurasi saat weights di update tiap batch (saat fit ann) """
+# classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
 
-# Fitting ANN ke Training set
-classifier.fit(X_train, y_train, batch_size = 10, epochs = 100)
+""" Fitting ANN ke Training set:
+Angka epochs, jumlah training ann pada seluruh training set
+Akurasi meningkat pada tiap putaran (tiap epochs) 
+Ukuran batch, update bobot setiap satu bacth observasi, disini tiap 10 data
+4 argumen; matrix of features, dependent var. vector, batch size, jumlah epoch """
+# classifier.fit(X_train, y_train, batch_size = 10, epochs = 100)
 
-# Bagian 3 - Membangun prediksi dan mengevaluasi model
-
-# Prediksi hasil test set
-y_pred = classifier.predict(X_test)
-y_pred = (y_pred > 0.5)
+""" Bagian 3 - Membangun prediksi dan mengevaluasi model
+Prediksi hasil test set
+jika y_pred > 0.5 maka True """
+# y_pred = classifier.predict(X_test)
+# y_pred = (y_pred > 0.5)
 
 # Membangun Confusion Matrix
-from sklearn.metrics import confusion_matrix
-cm = confusion_matrix(y_test, y_pred)
+# from sklearn.metrics import confusion_matrix
+# cm = confusion_matrix(y_test, y_pred)
+
+""" K-fold Cross Validation
+Untuk akurasi yang lebih relevan di test set
+K buah kombinasi training dan test set
+Menghitung rata-rata akurasi nya, juga standar deviasi nya utk mendapatkan variance
+
+Problem, model dibangun oleh Keras, sementara fungsi K-Fold Val. adalah Scikit-learn
+Mengkombinasikan Keras dan Scikit-Learn dengan modul 'Keras wrapper' dari Keras
+yang akan wrap K-fold CV dari Scikit-learn menjadi Keras Model
+Dengan kata lain, include K-fold CV ke dalam classifier keras kita """	
+
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import cross_val_score
+def build_classifier():
+	classifier = Sequential()
+	classifier.add(Dense(units = 6, kernel_initializer = "uniform", activation = "relu", input_dim = 11))
+	classifier.add(Dense(units = 6, kernel_initializer = "uniform", activation = "relu"))
+	classifier.add(Dense(units = 1, kernel_initializer = "uniform", activation = "sigmoid"))
+	classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+	return classifier
+classifier = KerasClassifier(build_fn = build_classifier, batch_size = 10, epochs = 100)
+accuracies = cross_val_score(estimator = classifier, X = X_train, y = y_train, cv = 10)
+	
+#Hitung mean dan variance
+mean = accuracies.mean()
+variance = accuracies.std() 
